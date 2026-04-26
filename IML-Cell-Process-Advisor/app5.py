@@ -18,6 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
 # =========================================================
 # CONSTANTS
 # =========================================================
@@ -259,14 +260,11 @@ def moldflow_lite_calculate(
     fill_s = fill_time_s(wall_mm, product, mfi)
     flow_rate_cm3_s = volume_cm3 / max(fill_s, 0.01)
 
-    # Shear rate approximation
     shear_rate = (6.0 * flow_rate_cm3_s) / (max(wall_mm, 0.3) ** 3 * max(cavity, 1))
 
-    # Cross-WLF-like viscosity
     eta0 = eta_zero_cross_wlf(melt_c, mfi)
     viscosity = eta_cross(eta0, shear_rate)
 
-    # Pressure demand
     flow_length_factor = 1.0 + 0.10 * cavity
     if product in {"Cup", "Lid"}:
         flow_length_factor *= 1.10
@@ -278,7 +276,6 @@ def moldflow_lite_calculate(
 
     injection_pressure_set_mpa = clamp(pressure_demand_mpa * 1.10, 40, MAX_INJECTION_PRESSURE_MPA)
 
-    # Injection speeds, 3 zones
     main_speed = (flow_rate_cm3_s / (max(wall_mm, 0.3) * max(cavity, 1))) * 10.0
     main_speed *= PRODUCT_FACTORS[product]["speed"]
 
@@ -289,11 +286,9 @@ def moldflow_lite_calculate(
     speed_z1 = clamp(speed_z2 * 0.55, 30, 220)
     speed_z3 = clamp(speed_z2 * 0.70, 40, 260)
 
-    # V/P
     vp_time_s = fill_s * 0.90
     vp_position_pct = clamp(96 - 2.5 * wall_mm, 86, 96)
 
-    # Gate freeze / pack
     gate_freeze_s = (wall_mm ** 2) / (math.pi ** 2 * THERMAL_DIFFUSIVITY_MM2_S) * math.log(8)
     pack_time_s = clamp(gate_freeze_s * 1.20, 0.8, 6.0)
 
@@ -310,7 +305,6 @@ def moldflow_lite_calculate(
     pack_pressure_mpa = pressure_demand_mpa * pack_ratio
     pack_speed_mm_s = clamp(speed_z2 * 0.15, 10, 60)
 
-    # Cooling / thermal diffusion
     eject_c = 95 if wall_mm <= 1.2 else 105 if wall_mm <= 2.5 else 115
     numerator = max(melt_c - mold_c, 1)
     denominator = max(eject_c - mold_c, 1)
@@ -328,7 +322,6 @@ def moldflow_lite_calculate(
 
     cooling_s = clamp(cooling_s * cooling_factor, 2.0, 40.0)
 
-    # Screw recovery
     rpm = 78 - 0.35 * (machine["screw_mm"] - 45)
     if mfi > 70:
         rpm += 4
@@ -346,7 +339,6 @@ def moldflow_lite_calculate(
     plast_rate = machine["screw_mm"] * rpm * 0.045
     recovery_s = clamp(shot_g / max(plast_rate, 1), 0.8, 8.0)
 
-    # Robot cycle
     robot_pick = machine["robot_pick_eyes"]
     robot_iml = machine["robot_iml_eyes"]
 
@@ -371,17 +363,23 @@ def moldflow_lite_calculate(
     else:
         bottleneck = "Dengeli hücre"
 
-    # Warpage heuristic
     delta_t = melt_c - mold_c
-    warpage_score = 0.0
-    warpage_score += clamp((delta_t - 180) / 80, 0, 1) * 0.40
-    warpage_score += clamp((wall_mm - 1.5) / 2.5, 0, 1) * 0.25
-    warpage_score += 0.20 if iml else 0.0
-    warpage_score += clamp((pack_pressure_mpa / max(pressure_demand_mpa, 1e-6)) - 0.60, 0, 0.40) * 0.25
+    pack_ratio_actual = pack_pressure_mpa / max(pressure_demand_mpa, 1e-6)
 
-    if warpage_score < 0.30:
+    warpage_score = 0.0
+    warpage_score += clamp((delta_t - 170) / 90, 0, 1) * 0.30
+    warpage_score += clamp((wall_mm - 0.8) / 2.5, 0, 1) * 0.25
+    warpage_score += clamp((22 - mold_c) / 12, 0, 1) * 0.15
+    warpage_score += clamp((0.58 - pack_ratio_actual) / 0.20, 0, 1) * 0.15
+
+    if iml:
+        warpage_score *= 1.12
+
+    warpage_score = clamp(warpage_score, 0, 1)
+
+    if warpage_score < 0.25:
         warpage_risk = "Düşük"
-    elif warpage_score < 0.60:
+    elif warpage_score < 0.55:
         warpage_risk = "Orta"
     else:
         warpage_risk = "Yüksek"
@@ -461,7 +459,7 @@ def moldflow_lite_calculate(
 # UI
 # =========================================================
 st.title("IML Moldflow-Lite Pro")
-st.caption("Makine önerisi, Cross-WLF benzeri reoloji, shear-rate basınç modeli, V/P, gate freeze, soğuma, warpage ve robot çevrim analizi")
+st.caption("Makine önerisi, reoloji, shear-rate basınç modeli, V/P, gate freeze, soğuma, warpage ve robot çevrim analizi")
 
 with st.sidebar:
     st.header("Girdi Parametreleri")
@@ -534,6 +532,7 @@ with col1:
             "Screw RPM",
             "Back pressure",
             "Screw recovery",
+            "Warpage skoru",
         ],
         "Değer": [
             result["machine"],
@@ -559,6 +558,7 @@ with col1:
             f"{r(result['rpm'], 0)}",
             f"{r(result['back_pressure_mpa'], 2)} MPa",
             f"{r(result['recovery_s'], 2)} s",
+            f"{r(result['warpage_score'], 2)}",
         ],
     })
     st.dataframe(process_df, use_container_width=True, hide_index=True)
