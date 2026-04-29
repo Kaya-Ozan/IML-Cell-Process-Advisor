@@ -9,9 +9,6 @@ import pandas as pd
 import streamlit as st
 
 
-# =========================================================
-# APP CONFIG
-# =========================================================
 st.set_page_config(
     page_title="IML Moldflow-Lite Pro",
     layout="wide",
@@ -20,24 +17,123 @@ st.set_page_config(
 
 
 # =========================================================
-# CONSTANTS
+# MATERIAL LIBRARY - MARKA BAZLI
 # =========================================================
-PP_DENSITY_G_CM3 = 0.90
-MAX_INJECTION_PRESSURE_MPA = 190.0
-THERMAL_DIFFUSIVITY_MM2_S = 0.12
-
-ETA0_REF_PA_S = 2000.0
-T_REF_C = 230.0
-C1 = 8.86
-C2 = 101.6
-TAU_STAR_PA = 100000.0
-POWER_INDEX = 0.25
-
-PRODUCT_FACTORS = {
-    "Cup": {"speed": 1.10, "area": 1.00, "mold_bias": -3},
-    "Lid": {"speed": 1.15, "area": 1.12, "mold_bias": -2},
-    "Tray": {"speed": 0.95, "area": 1.20, "mold_bias": 0},
-    "Container": {"speed": 1.00, "area": 1.05, "mold_bias": 0},
+MATERIAL_LIBRARY = {
+    "Borealis BJ368MO": {
+        "supplier": "Borealis",
+        "polymer_type": "PP Copolymer",
+        "mfi": 70.0,
+        "density": 0.905,
+        "thermal_diffusivity": 0.115,
+        "eta0_ref": 1850.0,
+        "power_index": 0.26,
+        "tau_star": 95000.0,
+        "wlf_c1": 8.86,
+        "wlf_c2": 101.6,
+        "melt_min": 210,
+        "melt_max": 245,
+        "mold_min": 15,
+        "mold_max": 40,
+        "shrinkage_min": 1.1,
+        "shrinkage_max": 1.8,
+        "note": "Borealis BJ368MO thin-wall copolymer preset. Verify with actual datasheet.",
+    },
+    "LyondellBasell Moplen EP2641": {
+        "supplier": "LyondellBasell",
+        "polymer_type": "Impact / Heterophasic Copolymer PP",
+        "mfi": 70.0,
+        "density": 0.900,
+        "thermal_diffusivity": 0.105,
+        "eta0_ref": 2100.0,
+        "power_index": 0.28,
+        "tau_star": 110000.0,
+        "wlf_c1": 8.86,
+        "wlf_c2": 101.6,
+        "melt_min": 210,
+        "melt_max": 250,
+        "mold_min": 15,
+        "mold_max": 45,
+        "shrinkage_min": 1.2,
+        "shrinkage_max": 2.0,
+        "note": "Moplen EP2641 heterophasic impact PP preset. Verify with actual datasheet.",
+    },
+    "Borealis RJ768MO": {
+        "supplier": "Borealis / Borouge",
+        "polymer_type": "Random Copolymer PP",
+        "mfi": 70.0,
+        "density": 0.905,
+        "thermal_diffusivity": 0.115,
+        "eta0_ref": 1750.0,
+        "power_index": 0.24,
+        "tau_star": 90000.0,
+        "wlf_c1": 8.86,
+        "wlf_c2": 101.6,
+        "melt_min": 210,
+        "melt_max": 240,
+        "mold_min": 15,
+        "mold_max": 35,
+        "shrinkage_min": 1.0,
+        "shrinkage_max": 1.7,
+        "note": "RJ768MO high-flow random copolymer preset. Verify with actual datasheet.",
+    },
+    "SABIC PP Thin Wall": {
+        "supplier": "SABIC",
+        "polymer_type": "High-flow PP",
+        "mfi": 65.0,
+        "density": 0.900,
+        "thermal_diffusivity": 0.115,
+        "eta0_ref": 1900.0,
+        "power_index": 0.25,
+        "tau_star": 95000.0,
+        "wlf_c1": 8.86,
+        "wlf_c2": 101.6,
+        "melt_min": 215,
+        "melt_max": 245,
+        "mold_min": 15,
+        "mold_max": 40,
+        "shrinkage_min": 1.1,
+        "shrinkage_max": 1.8,
+        "note": "SABIC thin-wall PP preset. Verify with actual datasheet.",
+    },
+    "TotalEnergies Lumicene": {
+        "supplier": "TotalEnergies",
+        "polymer_type": "Metallocene / Advanced PP",
+        "mfi": 60.0,
+        "density": 0.900,
+        "thermal_diffusivity": 0.115,
+        "eta0_ref": 1850.0,
+        "power_index": 0.24,
+        "tau_star": 90000.0,
+        "wlf_c1": 8.86,
+        "wlf_c2": 101.6,
+        "melt_min": 210,
+        "melt_max": 245,
+        "mold_min": 15,
+        "mold_max": 40,
+        "shrinkage_min": 1.0,
+        "shrinkage_max": 1.7,
+        "note": "Lumicene-like PP preset. Verify with actual datasheet.",
+    },
+    "Braskem High Flow PP": {
+        "supplier": "Braskem",
+        "polymer_type": "High-flow PP",
+        "mfi": 70.0,
+        "density": 0.900,
+        "thermal_diffusivity": 0.120,
+        "eta0_ref": 1800.0,
+        "power_index": 0.25,
+        "tau_star": 95000.0,
+        "wlf_c1": 8.86,
+        "wlf_c2": 101.6,
+        "melt_min": 210,
+        "melt_max": 245,
+        "mold_min": 15,
+        "mold_max": 40,
+        "shrinkage_min": 1.2,
+        "shrinkage_max": 1.9,
+        "note": "Braskem high-flow PP preset. Verify with actual datasheet.",
+    },
 }
 
 
@@ -72,6 +168,16 @@ def parse_robot_eyes(value) -> tuple[Optional[int], Optional[int]]:
     if not match:
         return None, None
     return int(match.group(1)), int(match.group(2))
+
+
+def product_factor(product: str, key: str) -> float:
+    factors = {
+        "Cup": {"speed": 1.10, "area": 1.00, "mold_bias": -3},
+        "Lid": {"speed": 1.15, "area": 1.12, "mold_bias": -2},
+        "Tray": {"speed": 0.95, "area": 1.20, "mold_bias": 0},
+        "Container": {"speed": 1.00, "area": 1.05, "mold_bias": 0},
+    }
+    return factors[product][key]
 
 
 # =========================================================
@@ -118,52 +224,83 @@ machine_library = load_machine_library(EXCEL_PATH)
 
 
 # =========================================================
-# MOLDFLOW-LITE ENGINE
+# MATERIAL FUNCTIONS
 # =========================================================
-def estimate_melt_temp_c(mfi: float) -> float:
-    return clamp(236 - 0.22 * (mfi - 20), 215, 240)
+def get_material(material_name: str, override_mfi: bool, user_mfi: float) -> dict:
+    mat = MATERIAL_LIBRARY[material_name].copy()
+    if override_mfi:
+        mat["mfi"] = user_mfi
+        mat["note"] += " User MFI override applied."
+    return mat
 
 
-def estimate_mold_temp_c(product: str, wall_mm: float, iml: bool) -> float:
-    base = 24 - 3.0 * wall_mm
-    base += PRODUCT_FACTORS[product]["mold_bias"]
+def estimate_melt_temp_c(material: dict) -> float:
+    return clamp(
+        (material["melt_min"] + material["melt_max"]) / 2,
+        material["melt_min"],
+        material["melt_max"],
+    )
+
+
+def estimate_mold_temp_c(product: str, wall_mm: float, iml: bool, material: dict) -> float:
+    base = (material["mold_min"] + material["mold_max"]) / 2
+    base += product_factor(product, "mold_bias")
+
+    if wall_mm < 0.7:
+        base -= 3
+    elif wall_mm > 2.0:
+        base += 3
+
     if iml:
         base += 2
-    return clamp(base, 14, 32)
+
+    return clamp(base, material["mold_min"], material["mold_max"])
 
 
-def eta_zero_cross_wlf(melt_temp_c: float, mfi: float) -> float:
-    eta0_mfi = ETA0_REF_PA_S * (1.0 / max(mfi, 1.0) ** 0.8)
-    d_t = melt_temp_c - T_REF_C
-    log_a_t = -C1 * d_t / (C2 + d_t + 1e-6)
+def eta_zero_cross_wlf(melt_temp_c: float, material: dict) -> float:
+    eta0_mfi = material["eta0_ref"] * (1.0 / max(material["mfi"], 1.0) ** 0.8)
+    t_ref = (material["melt_min"] + material["melt_max"]) / 2
+    d_t = melt_temp_c - t_ref
+    log_a_t = -material["wlf_c1"] * d_t / (material["wlf_c2"] + d_t + 1e-6)
     a_t = 10 ** log_a_t
     return eta0_mfi * a_t
 
 
-def eta_cross(eta0: float, shear_rate: float) -> float:
-    term = eta0 * shear_rate / TAU_STAR_PA
-    return eta0 / (1 + term ** (1 - POWER_INDEX))
+def eta_cross(eta0: float, shear_rate: float, material: dict) -> float:
+    term = eta0 * shear_rate / material["tau_star"]
+    return eta0 / (1 + term ** (1 - material["power_index"]))
 
 
 def total_shot_g(part_weight_g: float, cavity: int) -> float:
     return part_weight_g * cavity * 1.08
 
 
-def projected_area_cm2(product: str, part_weight_g: float, cavity: int, wall_mm: float) -> float:
+def projected_area_cm2(product: str, part_weight_g: float, cavity: int, wall_mm: float, material: dict) -> float:
     wall_cm = max(wall_mm / 10.0, 0.03)
-    volume_cm3 = part_weight_g / PP_DENSITY_G_CM3
-    area_per_cavity = (volume_cm3 / wall_cm) * PRODUCT_FACTORS[product]["area"]
+    volume_cm3 = part_weight_g / material["density"]
+    area_per_cavity = (volume_cm3 / wall_cm) * product_factor(product, "area")
     return area_per_cavity * cavity
 
 
-def clamp_load_ratio(product: str, part_weight_g: float, cavity: int, wall_mm: float, mfi: float, tonnage: float) -> float:
-    area_cm2 = projected_area_cm2(product, part_weight_g, cavity, wall_mm)
+def clamp_load_ratio(
+    product: str,
+    part_weight_g: float,
+    cavity: int,
+    wall_mm: float,
+    material: dict,
+    tonnage: float,
+) -> float:
+    area_cm2 = projected_area_cm2(product, part_weight_g, cavity, wall_mm, material)
 
-    cavity_pressure_bar = 230 + (140 / max(wall_mm, 0.45)) - 0.8 * mfi
+    cavity_pressure_bar = 230 + (140 / max(wall_mm, 0.45)) - 0.8 * material["mfi"]
+
     if product in {"Cup", "Lid"}:
         cavity_pressure_bar += 20
 
-    cavity_pressure_bar = clamp(cavity_pressure_bar, 180, 420)
+    if "Impact" in material["polymer_type"] or "Heterophasic" in material["polymer_type"]:
+        cavity_pressure_bar += 15
+
+    cavity_pressure_bar = clamp(cavity_pressure_bar, 180, 440)
     clamp_requirement_ton = area_cm2 * cavity_pressure_bar * 1.15 / 1000
 
     return clamp_requirement_ton / tonnage
@@ -175,7 +312,7 @@ def choose_best_machine(
     part_weight_g: float,
     cavity: int,
     wall_mm: float,
-    mfi: float,
+    material: dict,
     iml: bool,
 ) -> pd.Series:
     shot = total_shot_g(part_weight_g, cavity)
@@ -183,7 +320,7 @@ def choose_best_machine(
 
     for _, machine in lib.iterrows():
         shot_util = shot / machine["shot_capacity_g"]
-        clamp_load = clamp_load_ratio(product, part_weight_g, cavity, wall_mm, mfi, machine["tonnage"])
+        clamp_load = clamp_load_ratio(product, part_weight_g, cavity, wall_mm, material, machine["tonnage"])
 
         robot_ok = True
         if pd.notna(machine["robot_pick_eyes"]):
@@ -225,7 +362,7 @@ def choose_best_machine(
     return lib.loc[selected["index"]]
 
 
-def fill_time_s(wall_mm: float, product: str, mfi: float) -> float:
+def fill_time_s(wall_mm: float, product: str, material: dict) -> float:
     if wall_mm <= 0.45:
         base = 0.24
     elif wall_mm <= 0.70:
@@ -237,47 +374,66 @@ def fill_time_s(wall_mm: float, product: str, mfi: float) -> float:
     else:
         base = 1.25
 
-    mfi_factor = 1 - clamp((mfi - 40) * 0.002, -0.08, 0.08)
-    return base / PRODUCT_FACTORS[product]["speed"] * mfi_factor
+    mfi_factor = 1 - clamp((material["mfi"] - 40) * 0.002, -0.08, 0.08)
+
+    if "Impact" in material["polymer_type"] or "Heterophasic" in material["polymer_type"]:
+        base *= 1.05
+
+    if "Random" in material["polymer_type"]:
+        base *= 0.97
+
+    return base / product_factor(product, "speed") * mfi_factor
 
 
+# =========================================================
+# MOLDFLOW-LITE ENGINE
+# =========================================================
 def moldflow_lite_calculate(
     machine: pd.Series,
+    material: dict,
+    material_name: str,
     product: str,
     part_weight_g: float,
     cavity: int,
     wall_mm: float,
-    mfi: float,
     iml: bool,
 ) -> dict:
     shot_g = total_shot_g(part_weight_g, cavity)
     shot_util = shot_g / machine["shot_capacity_g"]
-    volume_cm3 = shot_g / PP_DENSITY_G_CM3
+    volume_cm3 = shot_g / material["density"]
 
-    melt_c = estimate_melt_temp_c(mfi)
-    mold_c = estimate_mold_temp_c(product, wall_mm, iml)
+    melt_c = estimate_melt_temp_c(material)
+    mold_c = estimate_mold_temp_c(product, wall_mm, iml, material)
 
-    fill_s = fill_time_s(wall_mm, product, mfi)
+    fill_s = fill_time_s(wall_mm, product, material)
     flow_rate_cm3_s = volume_cm3 / max(fill_s, 0.01)
 
     shear_rate = (6.0 * flow_rate_cm3_s) / (max(wall_mm, 0.3) ** 3 * max(cavity, 1))
 
-    eta0 = eta_zero_cross_wlf(melt_c, mfi)
-    viscosity = eta_cross(eta0, shear_rate)
+    eta0 = eta_zero_cross_wlf(melt_c, material)
+    viscosity = eta_cross(eta0, shear_rate, material)
 
     flow_length_factor = 1.0 + 0.10 * cavity
     if product in {"Cup", "Lid"}:
         flow_length_factor *= 1.10
     if iml:
         flow_length_factor *= 1.05
+    if "Impact" in material["polymer_type"] or "Heterophasic" in material["polymer_type"]:
+        flow_length_factor *= 1.08
 
     pressure_demand_mpa = viscosity * shear_rate * wall_mm * flow_length_factor / 1e6
     pressure_demand_mpa = clamp(pressure_demand_mpa, 40, 175)
 
-    injection_pressure_set_mpa = clamp(pressure_demand_mpa * 1.10, 40, MAX_INJECTION_PRESSURE_MPA)
+    injection_pressure_set_mpa = clamp(pressure_demand_mpa * 1.10, 40, 190)
 
     main_speed = (flow_rate_cm3_s / (max(wall_mm, 0.3) * max(cavity, 1))) * 10.0
-    main_speed *= PRODUCT_FACTORS[product]["speed"]
+    main_speed *= product_factor(product, "speed")
+
+    if "Impact" in material["polymer_type"] or "Heterophasic" in material["polymer_type"]:
+        main_speed *= 0.95
+
+    if "Random" in material["polymer_type"]:
+        main_speed *= 1.03
 
     if "HİDROLİK" in str(machine["machine_type"]).upper() or "HIDROLIK" in str(machine["machine_type"]).upper():
         main_speed *= 0.96
@@ -289,7 +445,14 @@ def moldflow_lite_calculate(
     vp_time_s = fill_s * 0.90
     vp_position_pct = clamp(96 - 2.5 * wall_mm, 86, 96)
 
-    gate_freeze_s = (wall_mm ** 2) / (math.pi ** 2 * THERMAL_DIFFUSIVITY_MM2_S) * math.log(8)
+    alpha = material["thermal_diffusivity"]
+    gate_freeze_s = (wall_mm ** 2) / (math.pi ** 2 * alpha) * math.log(8)
+
+    if "Random" in material["polymer_type"]:
+        gate_freeze_s *= 0.95
+    if "Impact" in material["polymer_type"] or "Heterophasic" in material["polymer_type"]:
+        gate_freeze_s *= 1.08
+
     pack_time_s = clamp(gate_freeze_s * 1.20, 0.8, 6.0)
 
     if wall_mm <= 0.7:
@@ -301,16 +464,21 @@ def moldflow_lite_calculate(
 
     if product == "Lid":
         pack_ratio -= 0.03
+    if "Impact" in material["polymer_type"] or "Heterophasic" in material["polymer_type"]:
+        pack_ratio += 0.03
 
     pack_pressure_mpa = pressure_demand_mpa * pack_ratio
     pack_speed_mm_s = clamp(speed_z2 * 0.15, 10, 60)
 
     eject_c = 95 if wall_mm <= 1.2 else 105 if wall_mm <= 2.5 else 115
+    if "Impact" in material["polymer_type"] or "Heterophasic" in material["polymer_type"]:
+        eject_c += 5
+
     numerator = max(melt_c - mold_c, 1)
     denominator = max(eject_c - mold_c, 1)
     arg = max((8 / (math.pi ** 2)) * (numerator / denominator), 1.05)
 
-    cooling_s = (wall_mm ** 2) / (math.pi ** 2 * THERMAL_DIFFUSIVITY_MM2_S) * math.log(arg)
+    cooling_s = (wall_mm ** 2) / (math.pi ** 2 * alpha) * math.log(arg)
 
     cooling_factor = 2.8
     if product == "Lid":
@@ -319,13 +487,17 @@ def moldflow_lite_calculate(
         cooling_factor *= 1.05
     if iml:
         cooling_factor *= 1.05
+    if "Random" in material["polymer_type"]:
+        cooling_factor *= 0.95
+    if "Impact" in material["polymer_type"] or "Heterophasic" in material["polymer_type"]:
+        cooling_factor *= 1.08
 
     cooling_s = clamp(cooling_s * cooling_factor, 2.0, 40.0)
 
     rpm = 78 - 0.35 * (machine["screw_mm"] - 45)
-    if mfi > 70:
+    if material["mfi"] > 70:
         rpm += 4
-    elif mfi < 30:
+    elif material["mfi"] < 30:
         rpm -= 6
     if shot_util < 0.12:
         rpm -= 5
@@ -335,7 +507,10 @@ def moldflow_lite_calculate(
         rpm += 2
     rpm = clamp(rpm, 35, 95)
 
-    back_pressure_mpa = 0.4 if mfi >= 70 else 0.6 if mfi >= 40 else 0.8
+    back_pressure_mpa = 0.4 if material["mfi"] >= 70 else 0.6 if material["mfi"] >= 40 else 0.8
+    if "Impact" in material["polymer_type"] or "Heterophasic" in material["polymer_type"]:
+        back_pressure_mpa += 0.1
+
     plast_rate = machine["screw_mm"] * rpm * 0.045
     recovery_s = clamp(shot_g / max(plast_rate, 1), 0.8, 8.0)
 
@@ -365,15 +540,21 @@ def moldflow_lite_calculate(
 
     delta_t = melt_c - mold_c
     pack_ratio_actual = pack_pressure_mpa / max(pressure_demand_mpa, 1e-6)
+    shrinkage_mid = (material["shrinkage_min"] + material["shrinkage_max"]) / 2
 
     warpage_score = 0.0
-    warpage_score += clamp((delta_t - 170) / 90, 0, 1) * 0.30
-    warpage_score += clamp((wall_mm - 0.8) / 2.5, 0, 1) * 0.25
+    warpage_score += clamp((delta_t - 170) / 90, 0, 1) * 0.25
+    warpage_score += clamp((wall_mm - 0.8) / 2.5, 0, 1) * 0.20
     warpage_score += clamp((22 - mold_c) / 12, 0, 1) * 0.15
     warpage_score += clamp((0.58 - pack_ratio_actual) / 0.20, 0, 1) * 0.15
+    warpage_score += clamp((shrinkage_mid - 1.2) / 0.8, 0, 1) * 0.20
 
     if iml:
         warpage_score *= 1.12
+    if "Random" in material["polymer_type"]:
+        warpage_score *= 0.95
+    if "Impact" in material["polymer_type"] or "Heterophasic" in material["polymer_type"]:
+        warpage_score *= 1.08
 
     warpage_score = clamp(warpage_score, 0, 1)
 
@@ -408,6 +589,13 @@ def moldflow_lite_calculate(
         "robot_raw": machine["robot_raw"],
         "screw_mm": machine["screw_mm"],
         "shot_capacity_g": machine["shot_capacity_g"],
+
+        "material_name": material_name,
+        "material_supplier": material["supplier"],
+        "material_type": material["polymer_type"],
+        "material_mfi": material["mfi"],
+        "material_density": material["density"],
+        "material_note": material["note"],
 
         "shot_g": shot_g,
         "shot_util": shot_util,
@@ -459,12 +647,28 @@ def moldflow_lite_calculate(
 # UI
 # =========================================================
 st.title("IML Moldflow-Lite Pro")
-st.caption("Makine önerisi, reoloji, shear-rate basınç modeli, V/P, gate freeze, soğuma, warpage ve robot çevrim analizi")
+st.caption("Makine, robot, IML ve hammadde kütüphanesi ile proses reçete öneri sistemi")
 
 with st.sidebar:
     st.header("Girdi Parametreleri")
 
     mode = st.radio("Makine seçimi", ["Otomatik öner", "Manuel seçim"])
+
+    material_name = st.selectbox("Hammadde", list(MATERIAL_LIBRARY.keys()))
+    override_mfi = st.checkbox("MFI değerini manuel değiştir", value=False)
+
+    if override_mfi:
+        user_mfi = st.number_input(
+            "Manuel MFI",
+            min_value=1.0,
+            max_value=150.0,
+            value=MATERIAL_LIBRARY[material_name]["mfi"],
+            step=1.0,
+        )
+    else:
+        user_mfi = MATERIAL_LIBRARY[material_name]["mfi"]
+
+    material = get_material(material_name, override_mfi, user_mfi)
 
     product = st.selectbox("Ürün tipi", ["Cup", "Lid", "Tray", "Container"])
     iml = st.checkbox("IML kullanılıyor", value=True)
@@ -472,7 +676,6 @@ with st.sidebar:
     part_weight_g = st.number_input("Parça ağırlığı (g)", min_value=0.1, max_value=500.0, value=10.0, step=0.1)
     cavity = st.number_input("Kalıp göz sayısı", min_value=1, max_value=64, value=4, step=1)
     wall_mm = st.number_input("Et kalınlığı (mm)", min_value=0.30, max_value=5.00, value=0.60, step=0.05)
-    mfi = st.number_input("PP MFI", min_value=1.0, max_value=150.0, value=70.0, step=1.0)
 
     selected_display = None
     if mode == "Manuel seçim":
@@ -485,11 +688,11 @@ if not calculate_button:
     st.stop()
 
 if mode == "Otomatik öner":
-    selected_machine = choose_best_machine(machine_library, product, part_weight_g, cavity, wall_mm, mfi, iml)
+    selected_machine = choose_best_machine(machine_library, product, part_weight_g, cavity, wall_mm, material, iml)
 else:
     selected_machine = machine_library[machine_library["display"] == selected_display].iloc[0]
 
-result = moldflow_lite_calculate(selected_machine, product, part_weight_g, cavity, wall_mm, mfi, iml)
+result = moldflow_lite_calculate(selected_machine, material, material_name, product, part_weight_g, cavity, wall_mm, iml)
 
 st.success("Reçete oluşturuldu.")
 
@@ -513,10 +716,15 @@ with col1:
             "Makine tipi",
             "Robot yapısı",
             "Vida çapı",
+            "Hammadde",
+            "Hammadde tipi",
+            "Malzeme MFI",
+            "Yoğunluk",
             "Shot kapasitesi",
             "Shot weight",
             "Shot utilization",
             "Fill time",
+            "Flow rate",
             "Shear rate",
             "Eta zero",
             "Viskozite",
@@ -539,10 +747,15 @@ with col1:
             result["machine_type"],
             result["robot_raw"],
             f"{r(result['screw_mm'], 0)} mm",
+            result["material_name"],
+            result["material_type"],
+            f"{r(result['material_mfi'], 1)}",
+            f"{r(result['material_density'], 3)} g/cm³",
             f"{r(result['shot_capacity_g'], 1)} g",
             f"{r(result['shot_g'], 1)} g",
             f"{r(result['shot_util'], 3)}",
             f"{r(result['fill_s'], 2)} s",
+            f"{r(result['flow_rate_cm3_s'], 2)} cm³/s",
             f"{r(result['shear_rate'], 1)} 1/s",
             f"{r(result['eta0_pa_s'], 1)} Pa.s",
             f"{r(result['viscosity_pa_s'], 1)} Pa.s",
@@ -614,6 +827,7 @@ with col3:
 
 with col4:
     st.subheader("Mühendislik Notları")
+    st.write(result["material_note"])
     if result["notes"]:
         for note in result["notes"]:
             st.warning(note)
@@ -621,4 +835,4 @@ with col4:
         st.success("Başlangıç reçetesi uygun görünüyor.")
 
 st.markdown("---")
-st.caption("Bu sistem Moldflow yerine geçmez; ancak reoloji, shear, basınç, soğuma, gate freeze, IML robot çevrimi ve makine kütüphanesini birlikte kullanan başlangıç proses penceresi üretir.")
+st.caption("Bu sistem Moldflow yerine geçmez; ancak makine, robot, IML, hammadde kütüphanesi, reoloji, shear, basınç, soğuma ve gate freeze mantığını birlikte kullanan başlangıç proses penceresi üretir.")
