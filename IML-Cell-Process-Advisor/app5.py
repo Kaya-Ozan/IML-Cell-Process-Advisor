@@ -60,19 +60,54 @@ def product_factor(product: str, key: str) -> float:
 
 def detect_product_type(product_name: str) -> str:
     n = norm_text(product_name)
-    if "SPREY" in n: return "Sprey Kapak"
-    if "OJE" in n or "FLORMAR KAPAK" in n: return "Oje Kapak"
-    if "BEBETO" in n and "KAPAK" in n: return "Bebeto Kapak"
-    if "BEBETO" in n: return "Bebeto Gövde"
-    if "CUBUK" in n or "KASIK" in n: return "Çubuk"
-    if "ZEYTIN" in n or "M.BIRLIK" in n: return "Zeytin Kapak" if "KAPAK" in n else "Zeytin Kase"
-    if "TATLI" in n or "KASE" in n: return "Tatlı Kase"
-    if "TAVA" in n: return "Tava Kapak" if "KAPAK" in n else "Tava Gövde"
-    if "TEREYAG" in n: return "Tereyağ Gövde"
-    if "YOGURT" in n or "KOVA" in n: return "Yoğurt Kapak" if "KAPAK" in n else "Yoğurt Gövde"
-    if "KAPAK" in n: return "Margarin/Labne Kapak"
-    if "LABNE" in n or "MARGARIN" in n or "KERRY" in n or "SUTAS" in n or "PINAR" in n: return "Margarin/Labne Gövde"
+
+    # Kozmetik / özel kapaklar
+    if "SPREY" in n:
+        return "Sprey Kapak"
+    if "OJE" in n or "FLORMAR" in n:
+        return "Oje Kapak"
+
+    # Bebeto
+    if "BEBETO" in n and "KAPAK" in n:
+        return "Bebeto Kapak"
+    if "BEBETO" in n:
+        return "Bebeto Gövde"
+
+    # Kaşık / çubuk
+    if "CUBUK" in n or "KASIK" in n:
+        return "Çubuk"
+
+    # Zeytin / Marmara Birlik
+    if "ZEYTIN" in n or "M.BIRLIK" in n or "M BIRLIK" in n:
+        return "Zeytin Kapak" if "KAPAK" in n else "Zeytin Kase"
+
+    # Tatlı / kase tipi ürünler
+    if "TATLI" in n or "KASE" in n:
+        return "Tatlı Kase"
+
+    # Tava ve T-Pack ailesi
+    if "TAVA" in n or "T-PACK" in n or "TPACK" in n:
+        return "Tava Kapak" if "KAPAK" in n else "Tava Gövde"
+
+    # Tereyağ gövde
+    if "TEREYAG" in n:
+        return "Tereyağ Gövde"
+
+    # Yoğurt / kova ailesi
+    if "YOGURT" in n or "KOVA" in n:
+        return "Yoğurt Kapak" if "KAPAK" in n else "Yoğurt Gövde"
+
+    # Labne, peynir, kaymak, süzme, margarin, Kerry/Pınar/Sütaş benzeri dairy spread ailesi
+    dairy_keywords = ["LABNE", "PEYNIR", "KAYMAK", "SUZME", "MARGARIN", "KERRY", "SUTAS", "PINAR", "COKOKREM"]
+    if any(k in n for k in dairy_keywords):
+        return "Margarin/Labne Kapak" if "KAPAK" in n else "Margarin/Labne Gövde"
+
+    # Son güvenli ayrım
+    if "KAPAK" in n:
+        return "Margarin/Labne Kapak"
+
     return "Margarin/Labne Gövde"
+
 
 def estimate_wall_from_product(product_type_tr: str, part_weight_g: float) -> float:
     base = {
@@ -880,12 +915,45 @@ with cell_col:
 
 st.markdown("---")
 st.subheader("Mühendislik Notları")
-st.write(result["material_note"])
+
+# Malzeme karakteri ayrı, proses sonucu ayrı değerlendirilir.
+st.info(f"Malzeme karakter notu: {result['material_note']}")
+
+critical_risks = []
+medium_risks = []
+
+risk_pairs = [
+    ("Warpage / çarpılma", result["warpage_risk"]),
+    ("Çapak", result["flash_risk"]),
+    ("Eksik dolum", result["short_shot_risk"]),
+    ("Sink / çökme", result["sink_risk"]),
+]
+
+for risk_name, risk_level in risk_pairs:
+    if risk_level == "Yüksek":
+        critical_risks.append(risk_name)
+    elif risk_level == "Orta":
+        medium_risks.append(risk_name)
+
+if critical_risks:
+    st.error(
+        "Mevcut reçete kritik risk içeriyor: "
+        + ", ".join(critical_risks)
+        + ". Sahada deneme yapılmadan seri üretime alınmamalı."
+    )
+elif medium_risks:
+    st.warning(
+        "Mevcut reçete çalışabilir görünüyor; ancak proses penceresi dar olabilir. "
+        "Orta seviye riskler: " + ", ".join(medium_risks) + "."
+    )
+else:
+    st.success("Mevcut reçete ve proses parametreleri stabil görünüyor.")
+
 if result["notes"]:
     for note in result["notes"]:
-        st.warning(note)
+        st.info(note)
 else:
-    st.success("Başlangıç reçetesi uygun görünüyor.")
+    st.info("Ek kritik mühendislik uyarısı oluşmadı.")
 
 st.caption("Bu sistem Moldflow yerine geçmez; ancak dedike makine bilgisi, otomatik makine önerisi, hammadde fingerprint'i, reoloji, shear, basınç, soğuma, gate freeze ve proses risk tahminini birlikte kullanan başlangıç proses penceresi üretir.")
 
